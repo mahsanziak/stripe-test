@@ -1,9 +1,26 @@
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { Elements, useStripe, PaymentRequestButtonElement } from '@stripe/react-stripe-js';
 import { useState, useEffect } from 'react';
+import Modal from 'react-modal';
 
 // Load Stripe instance
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY as string);
+
+// Custom Modal Styles
+const customModalStyles = {
+  content: {
+    top: '50%',
+    left: '50%',
+    right: 'auto',
+    bottom: 'auto',
+    marginRight: '-50%',
+    transform: 'translate(-50%, -50%)',
+    padding: '20px',
+    maxWidth: '400px',
+    border: '1px solid #ccc',
+    borderRadius: '8px',
+  },
+};
 
 // Payment Request Button Component
 const PaymentRequestForm = () => {
@@ -15,7 +32,7 @@ const PaymentRequestForm = () => {
 
   useEffect(() => {
     if (stripe) {
-      // Ensure stripe is not null before accessing paymentRequest
+      // Create PaymentRequest object
       const pr = stripe.paymentRequest({
         country: 'US', // Change to your country code
         currency: 'usd',
@@ -57,8 +74,7 @@ const PaymentRequestForm = () => {
   }, [stripe]);
 
   return (
-    <div style={{ maxWidth: '400px', margin: '50px auto', textAlign: 'center' }}>
-      <h1>Pay with Apple Pay or Google Pay</h1>
+    <div>
       {paymentRequest ? (
         <PaymentRequestButtonElement options={{ paymentRequest }} />
       ) : (
@@ -68,11 +84,46 @@ const PaymentRequestForm = () => {
   );
 };
 
-// Main Payment Page
+// Main Payment Page with Modal
 const PaymentPage = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openModal = () => setIsModalOpen(true);
+  const closeModal = () => setIsModalOpen(false);
+
   return (
     <Elements stripe={stripePromise}>
-      <PaymentRequestForm />
+      <div style={{ textAlign: 'center', marginTop: '50px' }}>
+        <button onClick={openModal} style={{ padding: '10px 20px', fontSize: '16px' }}>
+          Open Payment Modal
+        </button>
+
+        {/* Modal */}
+        <Modal
+          isOpen={isModalOpen}
+          onRequestClose={closeModal}
+          style={customModalStyles}
+          contentLabel="Payment Modal"
+        >
+          <h2 style={{ marginBottom: '20px' }}>Pay with Apple Pay or Google Pay</h2>
+          <PaymentRequestForm />
+          <button
+            onClick={closeModal}
+            style={{
+              marginTop: '20px',
+              padding: '10px 20px',
+              fontSize: '16px',
+              background: '#f44336',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            Close Modal
+          </button>
+        </Modal>
+      </div>
     </Elements>
   );
 };
