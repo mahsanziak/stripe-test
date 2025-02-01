@@ -1,4 +1,3 @@
-// pages/api/create-payment-intent.ts
 import Stripe from 'stripe';
 import { getOrCreateStripeCustomer } from '../../lib/stripe';
 import { supabase } from '../../lib/supabase';
@@ -14,7 +13,6 @@ interface CreatePaymentIntentRequest {
   userId: string;
   email: string;
 }
-
 interface CreatePaymentIntentResponse {
   clientSecret: string;
 }
@@ -26,6 +24,22 @@ export default async function handler(
   if (req.method === 'POST') {
     try {
       const { paymentMethodId, userId, email }: CreatePaymentIntentRequest = req.body;
+
+      // Validate request body
+      if (!paymentMethodId || !userId || !email) {
+        return res.status(400).json({ error: 'Invalid request data' });
+      }
+
+      // Check if the user exists in Supabase
+      const { data: userExists, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', userId)
+        .single();
+
+      if (userError || !userExists) {
+        return res.status(404).json({ error: 'User not found' });
+      }
 
       // Create or retrieve Stripe Customer
       const customerId = await getOrCreateStripeCustomer(userId, email);
