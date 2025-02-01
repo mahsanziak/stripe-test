@@ -1,3 +1,5 @@
+
+// pages/api/create-payment-intent.ts
 import Stripe from 'stripe';
 import { getOrCreateStripeCustomer } from '../../lib/stripe';
 import { supabase } from '../../lib/supabase';

@@ -1,3 +1,5 @@
+//pages/payment.tsx
+
 import { useState, useEffect } from 'react';import {
   Elements,
   useStripe,
@@ -151,6 +153,19 @@ const CreditCardForm = () => {
       if (error) {
         toast.error(`Payment failed: ${error.message}`);
       } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+        // Payment succeeded, update the user's access in Supabase
+        const updateResponse = await fetch('/api/update-user-access', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id }),
+        });
+
+        const updateResult = await updateResponse.json();
+
+        if (updateResult.error) {
+          throw new Error(updateResult.error);
+        }
+
         toast.success('Payment successful! You now have lifetime access.');
         router.push('/success'); // Redirect to success page
       }
