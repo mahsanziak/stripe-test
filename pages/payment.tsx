@@ -1,5 +1,5 @@
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements, useStripe, useElements, PaymentRequestButtonElement } from '@stripe/react-stripe-js';
+import { loadStripe, Stripe } from '@stripe/stripe-js';
+import { Elements, useStripe, PaymentRequestButtonElement } from '@stripe/react-stripe-js';
 import { useState, useEffect } from 'react';
 
 // Load Stripe instance
@@ -8,11 +8,14 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
 // Payment Request Button Component
 const PaymentRequestForm = () => {
   const stripe = useStripe();
-  const [paymentRequest, setPaymentRequest] = useState<any>(null);
+
+  // Define the correct type for paymentRequest
+  const [paymentRequest, setPaymentRequest] =
+    useState<ReturnType<Stripe['paymentRequest']> | null>(null);
 
   useEffect(() => {
     if (stripe) {
-      // Create PaymentRequest object
+      // Ensure stripe is not null before accessing paymentRequest
       const pr = stripe.paymentRequest({
         country: 'US', // Change to your country code
         currency: 'usd',
