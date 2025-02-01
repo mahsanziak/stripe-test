@@ -1,73 +1,61 @@
-import { loadStripe, Stripe } from '@stripe/stripe-js';
+import { useState, useEffect } from 'react'; // Import useEffect
 import { Elements, useStripe, PaymentRequestButtonElement } from '@stripe/react-stripe-js';
-import { useState, useEffect } from 'react';
+import { loadStripe, Stripe } from '@stripe/stripe-js'; // Import Stripe for type definitions
+import { getUser } from '../lib/auth';
 import Modal from 'react-modal';
 
-// Load Stripe instance
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY as string);
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
-// Custom Modal Styles
-const customModalStyles = {
-  content: {
-    top: '50%',
-    left: '50%',
-    right: 'auto',
-    bottom: 'auto',
-    marginRight: '-50%',
-    transform: 'translate(-50%, -50%)',
-    padding: '20px',
-    maxWidth: '400px',
-    border: '1px solid #ccc',
-    borderRadius: '8px',
-  },
-};
-
-// Payment Request Button Component
 const PaymentRequestForm = () => {
   const stripe = useStripe();
 
-  // Define the correct type for paymentRequest
-  const [paymentRequest, setPaymentRequest] =
-    useState<ReturnType<Stripe['paymentRequest']> | null>(null);
+  // Use the correct type for paymentRequest
+  const [paymentRequest, setPaymentRequest] = useState<ReturnType<Stripe['paymentRequest']> | null>(null);
 
   useEffect(() => {
     if (stripe) {
-      // Create PaymentRequest object
       const pr = stripe.paymentRequest({
-        country: 'US', // Change to your country code
+        country: 'US',
         currency: 'usd',
         total: {
-          label: 'Demo Payment',
-          amount: 1099, // Amount in cents ($10.99)
+          label: 'Lifetime Access',
+          amount: 1099, // $10.99
         },
         requestPayerName: true,
         requestPayerEmail: true,
       });
 
-      // Check if PaymentRequest is supported (Apple Pay/Google Pay)
       pr.canMakePayment().then((result) => {
         if (result) {
           setPaymentRequest(pr);
         }
       });
 
-      // Handle payment events
       pr.on('paymentmethod', async (ev) => {
-        // Send payment method to your server to complete the charge
+        const user = await getUser();
+        if (!user) {
+          alert('Please log in to proceed.');
+          ev.complete('fail');
+          return;
+        }
+
         const response = await fetch('/api/create-payment-intent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ paymentMethodId: ev.paymentMethod.id }),
+          body: JSON.stringify({
+            paymentMethodId: ev.paymentMethod.id,
+            userId: user.id,
+            email: user.email,
+          }),
         });
 
         const { error } = await response.json();
 
         if (error) {
-          // Show error to your customer
           ev.complete('fail');
         } else {
-          // Payment successful
           ev.complete('success');
+          alert('Payment successful! You now have lifetime access.');
         }
       });
     }
@@ -84,7 +72,6 @@ const PaymentRequestForm = () => {
   );
 };
 
-// Main Payment Page with Modal
 const PaymentPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -94,34 +81,12 @@ const PaymentPage = () => {
   return (
     <Elements stripe={stripePromise}>
       <div style={{ textAlign: 'center', marginTop: '50px' }}>
-        <button onClick={openModal} style={{ padding: '10px 20px', fontSize: '16px' }}>
-          Open Payment Modal
-        </button>
+        <button onClick={openModal}>Open Payment Modal</button>
 
-        {/* Modal */}
-        <Modal
-          isOpen={isModalOpen}
-          onRequestClose={closeModal}
-          style={customModalStyles}
-          contentLabel="Payment Modal"
-        >
-          <h2 style={{ marginBottom: '20px' }}>Pay with Apple Pay or Google Pay</h2>
+        <Modal isOpen={isModalOpen} onRequestClose={closeModal}>
+          <h2>Pay with Apple Pay or Google Pay</h2>
           <PaymentRequestForm />
-          <button
-            onClick={closeModal}
-            style={{
-              marginTop: '20px',
-              padding: '10px 20px',
-              fontSize: '16px',
-              background: '#f44336',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          >
-            Close Modal
-          </button>
+          <button onClick={closeModal}>Close Modal</button>
         </Modal>
       </div>
     </Elements>
