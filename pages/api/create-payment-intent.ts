@@ -9,12 +9,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 // Define types for request and response
 interface CreatePaymentIntentRequest {
-  paymentMethodId: string;
   userId: string;
   email: string;
 }
 interface CreatePaymentIntentResponse {
-  clientSecret: string;
+  clientSecret: string; // Ensure this is always a string
 }
 
 export default async function handler(
@@ -23,10 +22,10 @@ export default async function handler(
 ) {
   if (req.method === 'POST') {
     try {
-      const { paymentMethodId, userId, email }: CreatePaymentIntentRequest = req.body;
+      const { userId, email }: CreatePaymentIntentRequest = req.body;
 
       // Validate request body
-      if (!paymentMethodId || !userId || !email) {
+      if (!userId || !email) {
         return res.status(400).json({ error: 'Invalid request data' });
       }
 
@@ -44,37 +43,22 @@ export default async function handler(
       // Create or retrieve Stripe Customer
       const customerId = await getOrCreateStripeCustomer(userId, email);
 
-      // Create PaymentIntent
+      // Create PaymentIntent (without confirming it)
       const paymentIntent = await stripe.paymentIntents.create({
         amount: 1099, // Amount in cents ($10.99)
         currency: 'usd',
         customer: customerId,
-        payment_method: paymentMethodId,
-        confirmation_method: 'manual',
-        confirm: true,
         metadata: {
           supabase_user_id: userId, // Link payment to Supabase user
         },
         automatic_payment_methods: {
           enabled: true, // Enable Automatic Payment Methods
-          allow_redirects: 'never', // Disable redirect-based payment methods
         },
       });
 
-      // Ensure client_secret is not null
+      // Validate client_secret
       if (!paymentIntent.client_secret) {
-        return res.status(500).json({ error: 'Failed to create PaymentIntent' });
-      }
-
-      // Update Supabase database
-      const { error } = await supabase
-        .from('users')
-        .update({ has_lifetime_access: true })
-        .eq('id', userId);
-
-      if (error) {
-        console.error('Error updating user access:', error);
-        return res.status(500).json({ error: 'Failed to update user access' });
+        return res.status(500).json({ error: 'Failed to generate client secret' });
       }
 
       // Send the client secret in the response

@@ -92,11 +92,11 @@ const PaymentRequestForm = () => {
   );
 };
 
-// Credit Card Form Component
 const CreditCardForm = () => {
   const stripe = useStripe();
   const elements = useElements();
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -122,30 +122,44 @@ const CreditCardForm = () => {
     }
 
     try {
-      // Confirm the PaymentIntent with the card details
-      const { error, paymentIntent } = await stripe.confirmCardPayment(
-        process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
-        {
-          payment_method: {
-            card: cardElement,
-            billing_details: {
-              name: user.email,
-            },
+      // Fetch the client secret from the backend
+      const response = await fetch('/api/create-payment-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          email: user.email,
+        }),
+      });
+
+      const { clientSecret } = await response.json();
+
+      if (!clientSecret) {
+        throw new Error('Failed to create PaymentIntent');
+      }
+
+      // Confirm the payment on the client side
+      const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: cardElement,
+          billing_details: {
+            name: user.email,
           },
-        }
-      );
+        },
+      });
 
       if (error) {
         toast.error(`Payment failed: ${error.message}`);
       } else if (paymentIntent && paymentIntent.status === 'succeeded') {
         toast.success('Payment successful! You now have lifetime access.');
+        router.push('/success'); // Redirect to success page
       }
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-} catch (_err) {
-  toast.error('An unexpected error occurred. Please try again.');
-} finally {
-  setIsLoading(false);
-}
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      toast.error('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
