@@ -55,6 +55,10 @@ export default async function handler(
         metadata: {
           supabase_user_id: userId, // Link payment to Supabase user
         },
+        automatic_payment_methods: {
+          enabled: true, // Enable Automatic Payment Methods
+          allow_redirects: 'never', // Disable redirect-based payment methods
+        },
       });
 
       // Ensure client_secret is not null
